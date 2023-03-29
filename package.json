@@ -13,8 +13,7 @@
   "license": "ISC",
   "dependencies": {
     "bens_gpt": "^1.0.5",
-    "child_process": "^1.0.2"
-  },
-  "devDependencies": {
+    "child_process": "^1.0.2",
+    "fs": "^0.0.1-security"
   }
 }
