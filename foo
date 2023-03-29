@@ -1,9 +1,9 @@
-const fs = require(fs);
+const fs = require('fs');
 const { exec } = require('child_process');
 
 function modifyFileWithChatGPT(fileName, description) {
   // Read the contents of the file
-  const contents = fs.readFileSync(fileName, utf-8);
+  const contents = fs.readFileSync(fileName, 'utf-8');
 
   // Invoke chatGPT to modify the file with the description as the prompt and contents as the message
   exec(`echo "${description}" | transformers-cli chatGPT -r "${contents}"`, (error, stdout, stderr) => {
@@ -12,7 +12,7 @@ function modifyFileWithChatGPT(fileName, description) {
       return;
     }
     if (stderr) {
-      console.error(stderr: ${stderr});
+      console.error(`stderr: ${stderr}`);
       return;
     }
     // Write the output to a new file
