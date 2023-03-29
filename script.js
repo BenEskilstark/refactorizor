@@ -1,6 +1,6 @@
 const { exec } = require('child_process');
 
-exec('grep -r "TextArea" ./', (err, stdout, stderr) => {
+exec('cat script.js', (err, stdout, stderr) => {
   if (err) {
     console.error(`exec error: ${err}`);
     return;
