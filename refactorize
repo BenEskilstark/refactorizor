@@ -1,0 +1,60 @@
+#!/opt/homebrew/bin/node
+
+const {
+  createConversation, addMessage,
+  submitConversation,
+} = require('bens_gpt');
+const fs = require('fs');
+const {exec} = require('child_process');
+const {gptAPIKey} = require('./.secrets');
+
+const asyncExec = (cmd) => {
+  return new Promise((resolve, reject) => {
+    exec(cmd, (err, stdout, stderr) => {
+      resolve({stdout, stderr, err});
+    });
+  });
+}
+
+const createModificationConversation = (instructions) => {
+  return createConversation(
+    {modelParams: {temperature: 0}},
+    [{role: 'system', content: `
+      Modify the following file according to these instructions: ${instructions}
+      Don't make any changes to the file except those strictly required to follow the instructions
+      `
+    }]
+  );
+};
+
+const modifyFile = (fileName, instructions) => {
+  let modificationPrompt = createModificationConversation(instructions);
+  const fileContents = fs.readFileSync(fileName, 'utf-8');
+  modificationPrompt = addMessage(modificationPrompt, {role: 'user', content: fileContents});
+
+  // show loading spinner while waiting to get back from API
+  const spinner = ['|', '/', '-', '\\', "|"];
+  let i = 0;
+  let loadInterval = setInterval(() => {
+    process.stdout.write(`\r${spinner[i]}`);
+    i = (i + 1) % spinner.length;
+  }, 300);
+
+  submitConversation(modificationPrompt, gptAPIKey)
+    .then(({message, tokens, finishReason}) => {
+      clearInterval(loadInterval);
+      let contentToWrite = message.content;
+      // chatGPT likes to start its files with ``` so check for that and delete them
+      const lines = contentToWrite.split('\n');
+      if (lines[0].startsWith('```')) {
+        contentToWrite = lines.slice(1, -1).join('\n');
+      }
+
+      fs.writeFileSync(fileName, contentToWrite);
+      return asyncExec(`git diff --color=always ${fileName}`)
+    })
+    .then(({stdout}) => console.log(stdout));
+}
+
+modifyFile(process.argv[2], process.argv[3]);
+
