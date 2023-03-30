@@ -1,11 +1,6 @@
 
-  - Describe task
+  - fix the grep convo to be better
+  - allow you to provide your own regex
 
-  - grep for files that would need to be modified (this could be a back-and-forth)
-
-  - create a git branch for this before making changes
-    - what to do if there are already changes
-
-  - for each file in the grep, open it and make the modifications
-    - what to do if the file is too long
+  - what to do if the file is too long
 

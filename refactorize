@@ -5,16 +5,14 @@ const {
   submitConversation,
 } = require('bens_gpt');
 const fs = require('fs');
-const {exec} = require('child_process');
 const {gptAPIKey} = require('./.secrets');
+const {
+  asyncExec,
+  getRegex,
+  readline,
+  waitForYes,
+} = require('./utils');
 
-const asyncExec = (cmd) => {
-  return new Promise((resolve, reject) => {
-    exec(cmd, (err, stdout, stderr) => {
-      resolve({stdout, stderr, err});
-    });
-  });
-}
 
 const createModificationConversation = (instructions) => {
   return createConversation(
@@ -27,14 +25,65 @@ const createModificationConversation = (instructions) => {
   );
 };
 
+const createGrepConversation = (instructions) => {
+  return createConversation(
+    {modelParams: {temperature: 0}},
+    [{role: 'user', content: `
+      Given the following instructions, output a regex that would find all files where this instruction would be applicable: ${instructions}
+      You are NOT following these instructions -- someone else is -- you are just finding the files I would later need to modify
+      in order to follow the instructions.
+      Note that some of the terms in the instructions may be things that will need to be added and don't occur in the files
+      so if the regex looks for them it won't get any matches.
+      The regex you provide should be short and permissive -- it's OK if it matches files that are false positives.
+      But not so permissive that it matches everything.
+      `
+    }]
+  );
+}
+
+const spinner = ['|', '/', '-', '\\', "|"];
+let i = 0;
+
+const grepBasedOnInstructions = (instructions) => {
+  const grepPrompt = createGrepConversation(instructions);
+
+  let loadInterval = setInterval(() => {
+    process.stdout.write(`\r${spinner[i]}`);
+    i = (i + 1) % spinner.length;
+  }, 300);
+
+  submitConversation(grepPrompt, gptAPIKey)
+    .then(({message, tokens, finishReason}) => {
+      clearInterval(loadInterval);
+      console.log(message.content);
+      const searchParam = getRegex(message.content);
+      const grepCmd = `grep -rliE "${searchParam}" . --include="*.js" --exclude-dir={node_modules,bin}`;
+      console.log('looking for files with: ', grepCmd);
+      return asyncExec(grepCmd)
+    })
+    .then(({stdout}) => {
+      console.log(stdout);
+      return waitForYes("Do you want to refactor these files? (y/n)", stdout);
+    })
+    .then((files) => {
+      const fileNames = files.split('\n');
+      for (const fileName of fileNames) {
+        if (fileName.trim() == '') continue;
+        modifyFile(fileName, instructions);
+      }
+    })
+    .catch(() => {
+      console.log("maybe try again with different instructions");
+    });
+}
+
+
 const modifyFile = (fileName, instructions) => {
   let modificationPrompt = createModificationConversation(instructions);
   const fileContents = fs.readFileSync(fileName, 'utf-8');
   modificationPrompt = addMessage(modificationPrompt, {role: 'user', content: fileContents});
 
   // show loading spinner while waiting to get back from API
-  const spinner = ['|', '/', '-', '\\', "|"];
-  let i = 0;
   let loadInterval = setInterval(() => {
     process.stdout.write(`\r${spinner[i]}`);
     i = (i + 1) % spinner.length;
@@ -56,5 +105,6 @@ const modifyFile = (fileName, instructions) => {
     .then(({stdout}) => console.log(stdout));
 }
 
-modifyFile(process.argv[2], process.argv[3]);
+grepBasedOnInstructions(process.argv[2]);
+// modifyFile(process.argv[2], process.argv[3]);
 
