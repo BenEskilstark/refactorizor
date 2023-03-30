@@ -30,10 +30,6 @@ const createGrepConversation = (instructions) => {
     {modelParams: {temperature: 0}},
     [{role: 'user', content: `
       Given the following instructions, output a regex that would find all files where this instruction would be applicable: ${instructions}
-      You are NOT following these instructions -- someone else is -- you are just finding the files I would later need to modify
-      in order to follow the instructions.
-      Note that some of the terms in the instructions may be things that will need to be added and don't occur in the files
-      so if the regex looks for them it won't get any matches.
       The regex you provide should be short and permissive -- it's OK if it matches files that are false positives.
       But not so permissive that it matches everything.
       `
