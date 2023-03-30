@@ -1,6 +1,5 @@
 
   - fix the grep convo to be better
-  - allow you to provide your own regex
 
   - what to do if the file is too long
 

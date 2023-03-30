@@ -15,6 +15,9 @@ To Use:
   - you may need to modify the refactorize script to correctly
     include/exclude the right files from its search.
     Right now .js files are hardcoded to be the only things searched for
+  - you can also you the following flags:
+  > -f file/to/modify [to only modify the given file]
+  > -s regex [to directly use this regex to find files instead of generating the grep]
 
   - this will return a list of files it wants to modify and ask you to proceed
   - if yes, the instructions will be given to chatGPT for each file listed

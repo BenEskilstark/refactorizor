@@ -37,11 +37,52 @@ const createGrepConversation = (instructions) => {
   );
 }
 
+const parseInput = () => {
+  const args = process.argv.slice(2);
+  let instructionsIndex = 0;
+  const f = args.indexOf('-f');
+  if (f >= 0) {
+    if (f == 0) instructionsIndex = f + 2;
+    modifyFile(args[f + 1], args[instructionsIndex])
+      .then(() => process.exit(0));
+    return;
+  }
+  const s = args.indexOf('-s');
+  if (s >= 0) {
+    if (s == 0) instructionsIndex = s + 2;
+    grepBasedOnInstructions(args[instructionsIndex], args[s + 1]);
+    return;
+  }
+  grepBasedOnInstructions(args[instructionsIndex]);
+}
+
 const spinner = ['|', '/', '-', '\\', "|"];
 let i = 0;
 
-const grepBasedOnInstructions = (instructions) => {
+const grepBasedOnInstructions = (instructions, search) => {
   const grepPrompt = createGrepConversation(instructions);
+
+  if (search) {
+    const grepCmd = `grep -rliE "${search}" . --include="*.js" --exclude-dir={node_modules,bin}`;
+    console.log('looking for files with: ', grepCmd);
+    asyncExec(grepCmd)
+      .then(({stdout}) => {
+        console.log(stdout);
+        return waitForYes("Do you want to refactor these files? (y/n)", stdout);
+      })
+      .then((files) => {
+        const fileNames = files.split('\n');
+        for (const fileName of fileNames) {
+          if (fileName.trim() == '') continue;
+          modifyFile(fileName, instructions);
+        }
+      })
+      .catch(() => {
+        console.log("maybe try again with different instructions");
+        process.exit(0);
+      });
+    return;
+  }
 
   let loadInterval = setInterval(() => {
     process.stdout.write(`\r${spinner[i]}`);
@@ -70,6 +111,7 @@ const grepBasedOnInstructions = (instructions) => {
     })
     .catch(() => {
       console.log("maybe try again with different instructions");
+      process.exit(0);
     });
 }
 
@@ -85,22 +127,27 @@ const modifyFile = (fileName, instructions) => {
     i = (i + 1) % spinner.length;
   }, 300);
 
-  submitConversation(modificationPrompt, gptAPIKey)
+  return submitConversation(modificationPrompt, gptAPIKey)
     .then(({message, tokens, finishReason}) => {
       clearInterval(loadInterval);
       let contentToWrite = message.content;
       // chatGPT likes to start its files with ``` so check for that and delete them
-      const lines = contentToWrite.split('\n');
+      let lines = contentToWrite.split('\n');
       if (lines[0].startsWith('```')) {
-        contentToWrite = lines.slice(1, -1).join('\n');
+        lines = lines.slice(1, -1);
       }
+      lines[lines.length - 1].trim(); // also get rid of last trailing newline
+      contentToWrite = lines.join('\n');
 
       fs.writeFileSync(fileName, contentToWrite);
       return asyncExec(`git diff --color=always ${fileName}`)
     })
-    .then(({stdout}) => console.log(stdout));
+    .then(({stdout}) => {
+      console.log(stdout);
+    });
 }
 
-grepBasedOnInstructions(process.argv[2]);
+parseInput();
+// grepBasedOnInstructions(process.argv[2]);
 // modifyFile(process.argv[2], process.argv[3]);
 
