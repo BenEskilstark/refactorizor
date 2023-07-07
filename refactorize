@@ -16,7 +16,7 @@ const {
 
 const createModificationConversation = (instructions) => {
   return createConversation(
-    {modelParams: {temperature: 0}},
+    {model: 'gpt-3.5-turbo-16k', modelParams: {temperature: 0}},
     [{role: 'system', content: `
       Modify the following file according to these instructions: ${instructions}
       Don't make any changes to the file except those strictly required to follow the instructions
