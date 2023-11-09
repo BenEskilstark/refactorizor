@@ -7,6 +7,10 @@ To Use:
   - add refactorize to your $PATH
     - may also need to modify the shebang line at the start
       of refactorize to point at your node install location
+  - add a .secrets.js file to the root of the project that looks like:
+    module.exports = {
+      gptAPIKey: [YOUR OPENAI API KEY]
+    }
 
   > npm install
 
